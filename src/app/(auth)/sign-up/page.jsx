@@ -1,293 +1,217 @@
 'use client';
-import React, { useState, useEffect } from 'react';
-import { useSession } from '@/lib/auth-client';
+import { useState } from "react";
+import { Button, Description, FieldError, Form, Input, Label, TextField } from "@heroui/react";
+import { signIn } from "@/lib/auth-client";
 
-const Profile = () => {
-  // ১. Better Auth থেকে কারেন্ট সেশন ডাটা পাওয়া
-  const { data: session, isPending } = useSession();
+// Google Icon Component
+const GoogleIcon = () => (
+  <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+    <path
+      fill="#4285F4"
+      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+    />
+    <path
+      fill="#34A853"
+      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+    />
+    <path
+      fill="#FBBC05"
+      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+    />
+    <path
+      fill="#EA4335"
+      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+    />
+  </svg>
+);
 
-  // ডিফল্ট প্রোফাইল স্টেট (যা সেশনের অতিরিক্ত তথ্য যেমন ফোন, বায়ো ইত্যাদি ধারণ করবে)
-  const [user, setUser] = useState({
-    name: "মেসার্স রফিক কনস্ট্রাকশন",
-    role: "মালিক ও প্রধান ব্যবস্থাপক",
-    username: "@rafiq_builders",
-    email: "rafiq.construction@example.com",
-    phone: "+880 1712-345678",
-    bio: "বিল্ডিং ম্যাটেরিয়ালস সরবরাহকারী এবং কনস্ট্রাকশন মেটেরিয়ালসের নির্ভরযোগ্য বিশ্বস্ত প্রতিষ্ঠান। ইট, বালু, পাথর ও কনক্রিট পাইকারি ও খুচরা বিক্রয় করা হয়।",
-    location: "ঢাকা, বাংলাদেশ",
-    joinedDate: "জানুয়ারি ২০২৪",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=300",
-  });
+const LoginPage = () => {
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({ ...user });
-
-  // ২. সেশনে ইউজারের ডাটা আসবামাত্রই স্টেট আপডেট করা
-  useEffect(() => {
-    if (session?.user) {
-      setUser((prevUser) => {
-        const updated = {
-          ...prevUser,
-          name: session.user.name || prevUser.name,
-          email: session.user.email || prevUser.email,
-          avatar: session.user.image || prevUser.avatar,
-        };
-        setFormData(updated);
-        return updated;
-      });
-    }
-  }, [session]);
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSave = (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault();
-    setUser({ ...formData });
-    setIsEditing(false);
+    setErrorMessage(""); // আগের এরর ক্লিয়ার করার জন্য
+    setLoading(true);
+
+    const formData = new FormData(e.currentTarget);
+    const data = Object.fromEntries(formData.entries());
+
+    await signIn.email(
+      {
+        email: data.email,
+        password: data.password,
+        callbackURL: "/", // সফল লগইনের পর হোম পেজে রিডাইরেক্ট হবে
+      },
+      {
+        onRequest: () => {
+          setLoading(true);
+        },
+        onSuccess: () => {
+          setLoading(false);
+          window.location.href = "/";
+        },
+        onError: (ctx) => {
+          setLoading(false);
+          console.error("Login Error:", ctx.error);
+          // ভুল পাসওয়ার্ড বা ইমেইল দিলে এখানে কাস্টম বা আসল মেসেজ সেট হবে
+          setErrorMessage(
+            ctx.error?.message || "Invalid email or password. Please try again."
+          );
+        },
+      }
+    );
   };
 
-  // ৩. সেশন লোড হওয়ার সময় লোডিং স্ক্রিন
-  if (isPending) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-amber-50/40">
-        <p className="text-stone-600 font-semibold animate-pulse text-sm sm:text-base">
-          প্রোফাইল লোড হচ্ছে...
-        </p>
-      </div>
-    );
-  }
-
-  // সেশন অথবা স্টেটের বর্তমান ডাটা
-  const currentName = session?.user?.name || user.name;
-  const currentEmail = session?.user?.email || user.email;
-  const currentAvatar = session?.user?.image || user.avatar;
+  const handleGoogleSignIn = async () => {
+    try {
+      await signIn.social({
+        provider: "google",
+        callbackURL: "/",
+      });
+    } catch (err) {
+      console.error("Google Sign-in Exception:", err);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-amber-50/40 p-3 sm:p-6 lg:p-10 space-y-4 sm:space-y-8 font-sans">
-      
-      {/* 1. Profile Header / Banner Card */}
-      <div className="bg-white border border-stone-200/80 rounded-2xl shadow-sm overflow-hidden">
-        {/* Top Cover Banner */}
-        <div className="h-28 sm:h-44 md:h-52 bg-gradient-to-r from-amber-800 via-orange-900 to-stone-900 relative"></div>
-
-        {/* Profile Details Container */}
-        <div className="px-4 pb-5 sm:px-6 sm:pb-6 pt-0 relative flex flex-col sm:flex-row items-center sm:items-end justify-between gap-3 sm:gap-4 -mt-14 sm:-mt-16 md:-mt-20">
-          
-          {/* Avatar and Basic Info */}
-          <div className="flex flex-col sm:flex-row items-center sm:items-end gap-3 sm:gap-5 text-center sm:text-left w-full sm:w-auto">
-            <div className="relative">
-              <img 
-                src={currentAvatar} 
-                alt={currentName} 
-                className="w-24 h-24 sm:w-32 sm:h-32 md:w-36 md:h-36 rounded-full border-4 border-white shadow-md object-cover bg-white shrink-0"
-              />
-            </div>
-            <div className="sm:mb-2 space-y-0.5">
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-stone-800 tracking-tight">
-                {currentName}
-              </h1>
-              <p className="text-xs sm:text-sm font-semibold text-amber-800">
-                {user.role} <span className="font-normal text-stone-500">({session?.user?.name})</span>
-              </p>
-            </div>
-          </div>
-
-          {/* Action Button */}
-          <div className="w-full sm:w-auto sm:mb-2 pt-1 sm:pt-0">
-            <button 
-              onClick={() => {
-                setFormData({ ...user, name: currentName, email: session?.user?.email || user.email });
-                setIsEditing(!isEditing);
-              }}
-              className="w-full sm:w-auto bg-amber-800 hover:bg-amber-900 active:bg-stone-900 text-white font-bold text-xs sm:text-sm px-5 py-2.5 rounded-xl shadow-sm transition-all cursor-pointer border-0 flex items-center justify-center gap-2"
-            >
-              <span>{isEditing ? '✕ বাতিল করুন' : '✏️ প্রোফাইল এডিট করুন'}</span>
-            </button>
-          </div>
-
-        </div>
-      </div>
-
-      {/* 2. Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
+      {/* Container Card */}
+      <div className="max-w-md w-full space-y-6 bg-white p-8 rounded-2xl shadow-xl border border-slate-100">
         
-        {/* Left Column: Personal Information & Details */}
-        <div className="lg:col-span-1 space-y-4 sm:space-y-6">
-          <div className="bg-white border border-stone-200/80 rounded-2xl p-4 sm:p-6 shadow-sm space-y-3 sm:space-y-4">
-            <h2 className="text-base sm:text-lg font-bold text-stone-800 border-b border-stone-100 pb-2.5">
-              প্রতিষ্ঠান ও বায়ো
-            </h2>
-            
-            <p className="text-xs sm:text-sm text-stone-600 leading-relaxed">
-              {user.email} <br />
-
-            </p>
-
-            <div className="space-y-2.5 pt-2 text-xs sm:text-sm text-stone-600">
-              <div className="flex items-center gap-2.5">
-                <span className="text-stone-400 text-base">📧</span>
-                <span className="font-medium text-stone-700 truncate">{currentEmail}</span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <span className="text-stone-400 text-base">📞</span>
-                <span className="font-medium text-stone-700">{user.phone}</span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <span className="text-stone-400 text-base">📍</span>
-                <span className="font-medium text-stone-700">{user.location}</span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <span className="text-stone-400 text-base">📅</span>
-                <span className="font-medium text-stone-700">যুক্ত হয়েছেন: {user.joinedDate}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Business Categories / Material Types */}
-          <div className="bg-white border border-stone-200/80 rounded-2xl p-4 sm:p-6 shadow-sm space-y-3">
-            <h2 className="text-base sm:text-lg font-bold text-stone-800 border-b border-stone-100 pb-2.5">
-              সরবরাহকৃত পণ্যসমূহ
-            </h2>
-            <div className="flex flex-wrap gap-1.5 sm:gap-2 pt-1">
-              {["লাল ইট (অটো ব্রিকস)", "সিলেট বালু", "ভোলাগঞ্জ পাথর", "রেডিমেড কনক্রিট", "ভিটি বালু"].map((item, idx) => (
-                <span 
-                  key={idx} 
-                  className="px-2.5 py-1 bg-amber-100/70 text-amber-900 rounded-lg text-[11px] sm:text-xs font-semibold hover:bg-amber-200 transition-colors"
-                >
-                  {item}
-                </span>
-              ))}
-            </div>
-          </div>
+        {/* Header Section */}
+        <div className="text-center space-y-2">
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Welcome Back</h1>
+          <p className="text-sm text-slate-500">
+            Please sign in to access your account
+          </p>
         </div>
 
-        {/* Right Column: Activity Stats & Edit Profile Form */}
-        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+        {/* 🔴 Error Message Banner (ভুল পাসওয়ার্ড বা ইমেইল দিলে এটি দেখাবে) */}
+        {errorMessage && (
+          <div className="flex items-center gap-3 p-3.5 text-sm text-rose-700 bg-rose-50 rounded-xl border border-rose-200/80 animate-in fade-in duration-200">
+            <svg
+              className="w-5 h-5 text-rose-500 shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <span>{errorMessage}</span>
+          </div>
+        )}
+
+        {/* Google Sign-in Option */}
+        <div>
+          <Button 
+            onClick={handleGoogleSignIn} 
+            variant="bordered"
+            className="w-full font-medium border-slate-300 text-slate-700 hover:bg-slate-50 transition-all py-5 rounded-xl flex items-center justify-center shadow-sm cursor-pointer"
+          >
+            <GoogleIcon />
+            Sign in with Google
+          </Button>
+        </div>
+
+        {/* Divider */}
+        <div className="relative flex items-center justify-center my-4">
+          <div className="border-t border-slate-200 w-full"></div>
+          <span className="bg-white px-3 text-xs text-slate-400 uppercase font-semibold absolute">Or</span>
+        </div>
+
+        {/* Login Form */}
+        <Form className="flex flex-col gap-4" onSubmit={onSubmit}>
           
-          {/* Dashboard Stats Linked Overview */}
-          <div className="grid grid-cols-3 gap-2 sm:gap-4">
-            <div className="bg-white border border-stone-200/80 rounded-2xl p-3 sm:p-5 text-center shadow-sm">
-              <p className="text-lg sm:text-2xl font-black text-amber-800">৳৪,৯০,০০০</p>
-              <p className="text-[10px] sm:text-xs font-bold text-stone-400 uppercase tracking-wider mt-0.5 sm:mt-1">মোট বিক্রয়</p>
+          {/* Email Field */}
+          <TextField
+            isRequired
+            name="email"
+            type="email"
+            validate={(value) =>
+              !/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(value)
+                ? "Please enter a valid email address"
+                : null
+            }
+            className="flex flex-col gap-1.5"
+          >
+            <Label className="text-sm font-semibold text-slate-700">Email Address</Label>
+            <Input 
+              placeholder="john@example.com" 
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-all outline-none"
+            />
+            <FieldError className="text-xs text-rose-500 mt-1" />
+          </TextField>
+
+          {/* Password Field */}
+          <TextField
+            isRequired
+            minLength={8}
+            name="password"
+            type="password"
+            validate={(value) => {
+              if (value.length < 8) return "Password must be at least 8 characters";
+              if (!/[A-Z]/.test(value)) return "Password must contain at least one uppercase letter";
+              if (!/[0-9]/.test(value)) return "Password must contain at least one number";
+              return null;
+            }}
+            className="flex flex-col gap-1.5"
+          >
+            <div className="flex justify-between items-center">
+              <Label className="text-sm font-semibold text-slate-700">Password</Label>
+              <a href="#" className="text-xs text-blue-600 hover:underline">Forgot?</a>
             </div>
-            <div className="bg-white border border-stone-200/80 rounded-2xl p-3 sm:p-5 text-center shadow-sm">
-              <p className="text-lg sm:text-2xl font-black text-orange-700">১২৮ টি</p>
-              <p className="text-[10px] sm:text-xs font-bold text-stone-400 uppercase tracking-wider mt-0.5 sm:mt-1">মোট অর্ডার</p>
-            </div>
-            <div className="bg-white border border-stone-200/80 rounded-2xl p-3 sm:p-5 text-center shadow-sm">
-              <p className="text-lg sm:text-2xl font-black text-emerald-600">81.6%</p>
-              <p className="text-[10px] sm:text-xs font-bold text-stone-400 uppercase tracking-wider mt-0.5 sm:mt-1">টার্গেট পূরণ</p>
-            </div>
+            <Input 
+              placeholder="Enter your password" 
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 transition-all outline-none"
+            />
+            <Description className="text-xs text-slate-400">
+              Must be 8+ chars with 1 uppercase & 1 number
+            </Description>
+            <FieldError className="text-xs text-rose-500 mt-1" />
+          </TextField>
+
+          {/* Action Buttons */}
+          <div className="flex gap-3 mt-3">
+            <Button 
+              type="submit" 
+              color="primary" 
+              isLoading={loading}
+              isDisabled={loading}
+              className="w-full font-semibold py-2.5 rounded-xl shadow-md bg-blue-600 text-white hover:bg-blue-700 transition-all cursor-pointer"
+            >
+              {loading ? "Signing in..." : "Sign In"}
+            </Button>
+            <Button 
+              type="reset" 
+              variant="flat" 
+              onClick={() => setErrorMessage("")}
+              className="w-1/3 font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+            >
+              Reset
+            </Button>
           </div>
+        </Form>
 
-          {/* Account Settings Form View */}
-          <div className="bg-white border border-stone-200/80 rounded-2xl p-4 sm:p-6 shadow-sm space-y-4 sm:space-y-5">
-            <div className="flex items-center justify-between border-b border-stone-100 pb-3">
-              <h2 className="text-base sm:text-lg font-bold text-stone-800">অ্যাকাউন্ট ও প্রতিষ্ঠানের বিবরণ</h2>
-              <span className="text-[10px] sm:text-xs bg-amber-50 text-amber-800 font-semibold px-2 py-1 rounded-md">
-                {isEditing ? 'এডিটিং মোড' : 'দেখা হচ্ছে'}
-              </span>
-            </div>
-            
-            <form className="space-y-3 sm:space-y-4" onSubmit={handleSave}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <div>
-                  <label className="block text-[11px] sm:text-xs font-bold text-stone-600 uppercase mb-1">
-                    নাম / প্রতিষ্ঠানের নাম
-                  </label>
-                  <input 
-                    type="text" 
-                    name="name"
-                    disabled={!isEditing}
-                    value={isEditing ? formData.name : currentName} 
-                    onChange={handleInputChange}
-                    className="w-full px-3.5 py-2 sm:py-2.5 bg-stone-50 disabled:bg-stone-100/70 border border-stone-200 rounded-xl text-xs sm:text-sm font-medium text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition-all disabled:text-stone-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] sm:text-xs font-bold text-stone-600 uppercase mb-1">
-                    ইউজারনেম
-                  </label>
-                  <input 
-                    type="text" 
-                    name="username"
-                    disabled={!isEditing}
-                    value={formData.name} 
-                    onChange={handleInputChange}
-                    className="w-full px-3.5 py-2 sm:py-2.5 bg-stone-50 disabled:bg-stone-100/70 border border-stone-200 rounded-xl text-xs sm:text-sm font-medium text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition-all disabled:text-stone-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <div>
-                  <label className="block text-[11px] sm:text-xs font-bold text-stone-600 uppercase mb-1">
-                    ইমেইল এড্রেস
-                  </label>
-                  <input 
-                    type="email" 
-                    name="email"
-                    disabled={!isEditing}
-                    value={isEditing ? formData.email : currentEmail} 
-                    onChange={handleInputChange}
-                    className="w-full px-3.5 py-2 sm:py-2.5 bg-stone-50 disabled:bg-stone-100/70 border border-stone-200 rounded-xl text-xs sm:text-sm font-medium text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition-all disabled:text-stone-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] sm:text-xs font-bold text-stone-600 uppercase mb-1">
-                    মোবাইল নম্বর
-                  </label>
-                  <input 
-                    type="text" 
-                    name="phone"
-                    disabled={!isEditing}
-                    value={formData.phone} 
-                    onChange={handleInputChange}
-                    className="w-full px-3.5 py-2 sm:py-2.5 bg-stone-50 disabled:bg-stone-100/70 border border-stone-200 rounded-xl text-xs sm:text-sm font-medium text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition-all disabled:text-stone-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] sm:text-xs font-bold text-stone-600 uppercase mb-1">
-                  বায়ো / বিবরণ
-                </label>
-                <textarea 
-                  rows={3} 
-                  name="bio"
-                  disabled={!isEditing}
-                  value={formData.bio} 
-                  onChange={handleInputChange}
-                  className="w-full px-3.5 py-2 sm:py-2.5 bg-stone-50 disabled:bg-stone-100/70 border border-stone-200 rounded-xl text-xs sm:text-sm font-medium text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition-all disabled:text-stone-500 resize-none"
-                />
-              </div>
-
-              {isEditing && (
-                <div className="flex justify-end pt-2">
-                  <button 
-                    type="submit" 
-                    className="w-full sm:w-auto bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs sm:text-sm px-6 py-2.5 rounded-xl shadow-sm transition-colors cursor-pointer border-0"
-                  >
-                    পরিবর্তন সংরক্ষণ করুন
-                  </button>
-                </div>
-              )}
-            </form>
-          </div>
-
-        </div>
+        {/* Footer Navigation */}
+        <p className="text-center text-xs text-slate-500 mt-4">
+        Dont have an account?{" "}
+          <a href="/sign-up" className="text-blue-600 hover:underline font-semibold">
+            Sign Up
+          </a>
+        </p>
 
       </div>
-
     </div>
   );
 };
 
-export default Profile;
-
+export default LoginPage;
 // ------------- old code -------------
 // "use client";
 // import { signIn, signUp } from "@/lib/auth-client";
